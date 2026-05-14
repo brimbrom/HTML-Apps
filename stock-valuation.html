@@ -259,6 +259,31 @@
 
     /* ── Last updated ── */
     .last-updated { font-size: 11px; color: var(--text-dim); }
+
+    /* ── Price auto-fetch status ── */
+    .price-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .price-status.loading { color: var(--accent); }
+    .price-status.ok      { color: var(--gain); }
+    .price-status.err     { color: var(--loss); }
+    .price-status .mini-spin {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .field input.autofilled { border-color: var(--gain); }
   </style>
 </head>
 <body>
@@ -303,12 +328,12 @@
       <input type="number" id="fShares" placeholder="z. B. 10" min="0.0001" step="any" required />
     </div>
     <div class="field">
-      <label>Kaufpreis (pro Aktie)</label>
-      <input type="number" id="fPrice" placeholder="z. B. 150.00" min="0" step="any" required />
-    </div>
-    <div class="field">
       <label>Kaufdatum</label>
       <input type="date" id="fDate" required />
+    </div>
+    <div class="field">
+      <label>Kaufpreis (pro Aktie) <span id="priceStatus" class="price-status"></span></label>
+      <input type="number" id="fPrice" placeholder="wird ermittelt…" min="0" step="any" required />
     </div>
     <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
   </form>
@@ -385,6 +410,43 @@
   }
 
   // ── API ──────────────────────────────────────────────────────────────────
+  async function fetchHistoricalPrice(ticker, dateStr) {
+    const target = new Date(dateStr + 'T12:00:00Z');
+    const period1 = Math.floor(target.getTime() / 1000) - 7 * 86400;
+    const period2 = Math.floor(target.getTime() / 1000) + 86400;
+
+    const yfUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&period1=${period1}&period2=${period2}`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(yfUrl)}`;
+
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const result = data?.chart?.result?.[0];
+    if (!result) {
+      const errMsg = data?.chart?.error?.description ?? 'Kein Ergebnis';
+      throw new Error(errMsg);
+    }
+
+    const timestamps = result.timestamp;
+    const closes     = result.indicators?.quote?.[0]?.close;
+    if (!timestamps || !closes) throw new Error('Keine Kursdaten im Zeitraum');
+
+    const targetTs = Math.floor(target.getTime() / 1000);
+    let bestIdx = -1, bestDiff = Infinity;
+    timestamps.forEach((ts, i) => {
+      if (closes[i] == null) return;
+      const diff = targetTs - ts;
+      if (diff >= -86400 && Math.abs(diff) < bestDiff) {
+        bestDiff = Math.abs(diff);
+        bestIdx = i;
+      }
+    });
+
+    if (bestIdx === -1) throw new Error('Kein Handelstag in diesem Zeitraum gefunden');
+    return closes[bestIdx];
+  }
+
   async function fetchCurrentPrice(ticker) {
     const encodedUrl = encodeURIComponent(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
@@ -599,11 +661,65 @@
     toastTimer = setTimeout(() => { el.className = type; }, 3000);
   }
 
+  // ── Auto-fill historical price ────────────────────────────────────────────
+  let autofillDebounce;
+
+  function triggerAutofill() {
+    clearTimeout(autofillDebounce);
+    autofillDebounce = setTimeout(doAutofill, 400);
+  }
+
+  async function doAutofill() {
+    const ticker = document.getElementById('fTicker').value.trim().toUpperCase();
+    const date   = document.getElementById('fDate').value;
+    const priceInput  = document.getElementById('fPrice');
+    const statusEl    = document.getElementById('priceStatus');
+
+    if (!ticker || !date) return;
+
+    statusEl.className   = 'price-status loading';
+    statusEl.innerHTML   = '<span class="mini-spin"></span> wird ermittelt…';
+    priceInput.disabled  = true;
+    priceInput.classList.remove('autofilled');
+
+    try {
+      const price = await fetchHistoricalPrice(ticker, date);
+      priceInput.value     = price.toFixed(2);
+      priceInput.classList.add('autofilled');
+      statusEl.className   = 'price-status ok';
+      statusEl.textContent = '✓ Automatisch ermittelt';
+    } catch (e) {
+      statusEl.className   = 'price-status err';
+      statusEl.textContent = '⚠ ' + e.message;
+      priceInput.value     = '';
+      priceInput.placeholder = 'manuell eingeben';
+    } finally {
+      priceInput.disabled = false;
+    }
+  }
+
   // ── Init ─────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    // Set today as default date
     document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
     render();
+
+    document.getElementById('fTicker').addEventListener('change', triggerAutofill);
+    document.getElementById('fTicker').addEventListener('blur',   triggerAutofill);
+    document.getElementById('fDate').addEventListener('change',   triggerAutofill);
+
+    // Clear auto-fill indicator when user manually edits price
+    document.getElementById('fPrice').addEventListener('input', () => {
+      document.getElementById('fPrice').classList.remove('autofilled');
+      document.getElementById('priceStatus').className   = 'price-status';
+      document.getElementById('priceStatus').textContent = '';
+    });
+
+    // Reset status on form reset
+    document.getElementById('addForm').addEventListener('reset', () => {
+      document.getElementById('priceStatus').className   = 'price-status';
+      document.getElementById('priceStatus').textContent = '';
+      document.getElementById('fPrice').classList.remove('autofilled');
+    });
   });
 </script>
 </body>
