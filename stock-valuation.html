@@ -222,6 +222,29 @@
     }
     .manual-input:focus { border-color: var(--accent); }
     .price-error { color: var(--text-dim); font-size: 12px; cursor: help; }
+
+    /* ── Inline editing ── */
+    .editable-cell {
+      cursor: pointer;
+      transition: color 0.12s;
+    }
+    .editable-cell:hover { color: var(--accent); }
+    .editable-cell .edit-hint {
+      font-size: 10px; opacity: 0; margin-left: 4px;
+      color: var(--text-dim); transition: opacity 0.12s;
+    }
+    .editable-cell:hover .edit-hint { opacity: 1; }
+    .inline-edit-input {
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 3px 6px;
+      width: 100%;
+      min-width: 80px;
+      outline: none;
+    }
   </style>
 </head>
 <body>
@@ -349,12 +372,12 @@
 <div id="toast"></div>
 
 <script>
-  // ── Constants ─────────────────────────────────────────────────────────────
+  // ── Constants ───────────────────────────────────────────────────────────────────────────
   const STORAGE_KEY = 'stockPortfolio';
   const MS_PER_DAY  = 86400000;
   const POS_COLORS  = ['#22c55e','#f59e0b','#06b6d4','#ec4899','#8b5cf6','#14b8a6','#f97316','#a78bfa'];
 
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────────────────────────
   let viewPrices   = {};
   let viewLoading  = {};
   let viewErrors   = {};
@@ -363,14 +386,14 @@
   const historyCache = {};   // 'TICKER_fromDate' → {dates[], prices{}}
   let chartInstance  = null;
 
-  // ── Storage ───────────────────────────────────────────────────────────────
+  // ── Storage ─────────────────────────────────────────────────────────────────────────
   function loadPortfolio() {
     try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : { positions: [] }; }
     catch { return { positions: [] }; }
   }
   function savePortfolio(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
-  // ── Date helpers ──────────────────────────────────────────────────────────
+  // ── Date helpers ──────────────────────────────────────────────────────────────────
   function generateId() { return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2); }
   function todayStr()   { return new Date().toISOString().split('T')[0]; }
   function dateStrToDay(d) { return Math.floor(new Date(d + 'T12:00:00Z').getTime() / MS_PER_DAY); }
@@ -379,7 +402,7 @@
     return new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  // ── Formatting ────────────────────────────────────────────────────────────
+  // ── Formatting ────────────────────────────────────────────────────────────────────
   const fmtCur = new Intl.NumberFormat('de-DE', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
   const fmtNum = new Intl.NumberFormat('de-DE', { minimumFractionDigits:2, maximumFractionDigits:2 });
   function fc(n)   { return n != null ? fmtCur.format(n) : '—'; }
@@ -389,7 +412,7 @@
   function pnlClass(n) { return n > 0 ? 'gain-text' : n < 0 ? 'loss-text' : 'neutral-text'; }
   function escHtml(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  // ── API: single date ──────────────────────────────────────────────────────
+  // ── API: single date ────────────────────────────────────────────────────────────────
   async function fetchHistoricalPrice(ticker, dateStr) {
     const key = ticker + '_' + dateStr;
     if (priceCache[key] != null) return priceCache[key];
@@ -416,7 +439,7 @@
     return cl[bestIdx];
   }
 
-  // ── API: full history for chart ───────────────────────────────────────────
+  // ── API: full history for chart ───────────────────────────────────────────────────
   async function fetchFullHistory(ticker, fromDate) {
     const key = 'hist_' + ticker + '_' + fromDate;
     if (historyCache[key]) return historyCache[key];
@@ -451,7 +474,7 @@
     return null;
   }
 
-  // ── Slider ────────────────────────────────────────────────────────────────
+  // ── Slider ────────────────────────────────────────────────────────────────────────────
   function updateSlider() {
     const { positions } = loadPortfolio();
     const slider = document.getElementById('dateSlider');
@@ -481,7 +504,6 @@
   let sliderDebounce;
   function onSliderInput() {
     updateSliderLabel();
-    // Move chart cursor immediately (no data fetch needed)
     if (chartInstance) chartInstance.update('none');
     clearTimeout(sliderDebounce);
     sliderDebounce = setTimeout(() => {
@@ -498,7 +520,7 @@
     loadViewPrices();
   }
 
-  // ── View prices ───────────────────────────────────────────────────────────
+  // ── View prices ───────────────────────────────────────────────────────────────────
   async function loadViewPrices() {
     const { positions } = loadPortfolio();
     if (positions.length === 0) return;
@@ -539,8 +561,7 @@
     showToast('Kurse aktualisiert.', 'success');
   }
 
-  // ── Chart ─────────────────────────────────────────────────────────────────
-  // Plugin: draw a vertical line at selectedDate
+  // ── Chart ───────────────────────────────────────────────────────────────────────────
   const sliderCursorPlugin = {
     id: 'sliderCursor',
     afterDraw(chart) {
@@ -578,13 +599,11 @@
       catch (e) { console.warn('History fetch failed for', t, e.message); }
     }));
 
-    // Union of all trading days
     const allDatesSet = new Set();
     Object.values(histories).forEach(h => { if (h) h.dates.forEach(d => allDatesSet.add(d)); });
     const labels = [...allDatesSet].sort();
     if (labels.length === 0) return null;
 
-    // Total portfolio value + cost basis per day
     const totalValues = [], costValues = [];
     const posDatasets = positions.map(() => []);
 
@@ -741,7 +760,7 @@
       `${count} Handelstage · ${formatDate(labels[0])} – ${formatDate(labels[count - 1])}`;
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────────────
   function renderSummary(positions) {
     const allInvested = positions.reduce((s, p) => s + p.shares * p.purchasePrice, 0);
     document.getElementById('sumInvested').textContent = fc(allInvested);
@@ -792,8 +811,8 @@
       }
       return `<tr>
         <td><span class="ticker-badge">${escHtml(p.ticker)}</span></td>
-        <td>${escHtml(p.purchaseDate)}</td>
-        <td>${fn(p.shares)}</td>
+        <td class="editable-cell" onclick="makeEditable('${p.id}','purchaseDate','${p.purchaseDate}',this)">${escHtml(formatDate(p.purchaseDate))}<span class="edit-hint">✎</span></td>
+        <td class="editable-cell" onclick="makeEditable('${p.id}','shares','${p.shares}',this)">${fn(p.shares)}<span class="edit-hint">✎</span></td>
         <td>${fc(p.purchasePrice)}</td>
         <td>${priceCell}</td>
         <td>${fc(invested)}</td>
@@ -805,6 +824,60 @@
     }).join('');
   }
 
+  // ── Inline editing ───────────────────────────────────────────────────────────────
+  function makeEditable(posId, field, currentValue, cellEl) {
+    if (cellEl.querySelector('.inline-edit-input')) return;
+    const isDate = field === 'purchaseDate';
+    const input  = document.createElement('input');
+    input.className = 'inline-edit-input';
+    input.type  = isDate ? 'date' : 'number';
+    input.value = currentValue;
+    if (!isDate) { input.min = '0.0001'; input.step = 'any'; }
+    cellEl.textContent = '';
+    cellEl.appendChild(input);
+    input.focus();
+    if (!isDate) input.select();
+
+    let committed = false;
+    function commit(doSave) {
+      if (committed) return;
+      committed = true;
+      if (doSave) {
+        const raw = input.value.trim();
+        const valid = isDate ? !!raw : (!isNaN(parseFloat(raw)) && parseFloat(raw) > 0);
+        if (valid) {
+          const data = loadPortfolio();
+          const pos  = data.positions.find(p => p.id === posId);
+          if (pos) {
+            if (isDate) {
+              const oldDate = pos.purchaseDate;
+              pos.purchaseDate = raw;
+              delete priceCache[pos.ticker + '_' + oldDate];
+              Object.keys(historyCache).forEach(k => {
+                if (k.startsWith('hist_' + pos.ticker + '_')) delete historyCache[k];
+              });
+            } else {
+              pos.shares = parseFloat(raw);
+            }
+            savePortfolio(data);
+            render();
+            loadViewPrices();
+            if (isDate) refreshChart();
+            showToast(`${pos.ticker} aktualisiert.`, 'success');
+            return;
+          }
+        }
+      }
+      renderTable(loadPortfolio().positions);
+    }
+
+    input.addEventListener('blur', () => commit(true));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); commit(true); }
+      if (e.key === 'Escape') { e.preventDefault(); committed = false; commit(false); }
+    });
+  }
+
   function render() {
     const { positions } = loadPortfolio();
     updateSlider();
@@ -812,7 +885,7 @@
     renderSummary(positions);
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Actions ───────────────────────────────────────────────────────────────────────
   function handleAddSubmit(e) {
     e.preventDefault();
     const ticker        = document.getElementById('fTicker').value.trim().toUpperCase();
@@ -851,7 +924,7 @@
     renderTable(positions); renderSummary(positions);
   }
 
-  // ── Toast ─────────────────────────────────────────────────────────────────
+  // ── Toast ───────────────────────────────────────────────────────────────────────────
   let toastTimer;
   function showToast(msg, type = '') {
     const el = document.getElementById('toast');
@@ -860,7 +933,7 @@
     toastTimer = setTimeout(() => { el.className = type; }, 3000);
   }
 
-  // ── Auto-fill price in form ───────────────────────────────────────────────
+  // ── Auto-fill price in form ─────────────────────────────────────────────────────────
   let autofillDebounce;
   function triggerAutofill() { clearTimeout(autofillDebounce); autofillDebounce = setTimeout(doAutofill, 400); }
   async function doAutofill() {
@@ -881,7 +954,7 @@
     } finally { inp.disabled = false; }
   }
 
-  // ── Init ──────────────────────────────────────────────────────────────────
+  // ── Init ─────────────────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fDate').value = todayStr();
     selectedDate = todayStr();
