@@ -222,6 +222,29 @@
     }
     .manual-input:focus { border-color: var(--accent); }
     .price-error { color: var(--text-dim); font-size: 12px; cursor: help; }
+
+    /* ── Inline editing ── */
+    .editable-cell {
+      cursor: pointer;
+      transition: color 0.12s;
+    }
+    .editable-cell:hover { color: var(--accent); }
+    .editable-cell .edit-hint {
+      font-size: 10px; opacity: 0; margin-left: 4px;
+      color: var(--text-dim); transition: opacity 0.12s;
+    }
+    .editable-cell:hover .edit-hint { opacity: 1; }
+    .inline-edit-input {
+      background: var(--bg);
+      border: 1px solid var(--accent);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 3px 6px;
+      width: 100%;
+      min-width: 80px;
+      outline: none;
+    }
   </style>
 </head>
 <body>
@@ -792,8 +815,8 @@
       }
       return `<tr>
         <td><span class="ticker-badge">${escHtml(p.ticker)}</span></td>
-        <td>${escHtml(p.purchaseDate)}</td>
-        <td>${fn(p.shares)}</td>
+        <td class="editable-cell" onclick="makeEditable('${p.id}','purchaseDate','${p.purchaseDate}',this)">${escHtml(formatDate(p.purchaseDate))}<span class="edit-hint">✎</span></td>
+        <td class="editable-cell" onclick="makeEditable('${p.id}','shares','${p.shares}',this)">${fn(p.shares)}<span class="edit-hint">✎</span></td>
         <td>${fc(p.purchasePrice)}</td>
         <td>${priceCell}</td>
         <td>${fc(invested)}</td>
@@ -803,6 +826,60 @@
         <td><button class="btn btn-danger" onclick="deletePosition('${p.id}')" title="Löschen">✕</button></td>
       </tr>`;
     }).join('');
+  }
+
+  // ── Inline editing ────────────────────────────────────────────────────────
+  function makeEditable(posId, field, currentValue, cellEl) {
+    if (cellEl.querySelector('.inline-edit-input')) return;
+    const isDate = field === 'purchaseDate';
+    const input  = document.createElement('input');
+    input.className = 'inline-edit-input';
+    input.type  = isDate ? 'date' : 'number';
+    input.value = currentValue;
+    if (!isDate) { input.min = '0.0001'; input.step = 'any'; }
+    cellEl.textContent = '';
+    cellEl.appendChild(input);
+    input.focus();
+    if (!isDate) input.select();
+
+    let committed = false;
+    function commit(doSave) {
+      if (committed) return;
+      committed = true;
+      if (doSave) {
+        const raw = input.value.trim();
+        const valid = isDate ? !!raw : (!isNaN(parseFloat(raw)) && parseFloat(raw) > 0);
+        if (valid) {
+          const data = loadPortfolio();
+          const pos  = data.positions.find(p => p.id === posId);
+          if (pos) {
+            if (isDate) {
+              const oldDate = pos.purchaseDate;
+              pos.purchaseDate = raw;
+              delete priceCache[pos.ticker + '_' + oldDate];
+              Object.keys(historyCache).forEach(k => {
+                if (k.startsWith('hist_' + pos.ticker + '_')) delete historyCache[k];
+              });
+            } else {
+              pos.shares = parseFloat(raw);
+            }
+            savePortfolio(data);
+            render();
+            loadViewPrices();
+            if (isDate) refreshChart();
+            showToast(`${pos.ticker} aktualisiert.`, 'success');
+            return;
+          }
+        }
+      }
+      renderTable(loadPortfolio().positions);
+    }
+
+    input.addEventListener('blur', () => commit(true));
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter')  { e.preventDefault(); commit(true); }
+      if (e.key === 'Escape') { e.preventDefault(); committed = false; commit(false); }
+    });
   }
 
   function render() {
