@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aktien Portfolio Bewertung</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2d3148;
+      --accent:   #6c63ff;
+      --accent-h: #574fd6;
+      --gain:     #22c55e;
+      --loss:     #ef4444;
+      --neutral:  #94a3b8;
+      --text:     #e2e8f0;
+      --text-dim: #94a3b8;
+      --radius:   10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    header h1 span { color: var(--accent); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: background 0.15s, opacity 0.15s;
+    }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .btn-primary  { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-h); }
+    .btn-ghost    { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost:hover:not(:disabled) { background: var(--border); }
+    .btn-danger   { background: transparent; color: var(--loss); border: 1px solid transparent; padding: 4px 8px; font-size: 16px; }
+    .btn-danger:hover { border-color: var(--loss); }
+
+    /* ── Summary Cards ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .card-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .card-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .card-value.gain  { color: var(--gain); }
+    .card-value.loss  { color: var(--loss); }
+    .card-value.neutral { color: var(--text-dim); }
+
+    /* ── Form ── */
+    .form-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+    .form-section h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1 1 130px;
+    }
+    .field label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-dim);
+    }
+    .field input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 14px;
+      padding: 8px 10px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--text-dim); }
+
+    /* ── Table ── */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    thead th {
+      background: var(--surface);
+      color: var(--text-dim);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      padding: 12px 14px;
+      text-align: right;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+    thead th:first-child,
+    thead th:nth-child(2) { text-align: left; }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(108, 99, 255, 0.05); }
+    tbody td {
+      padding: 12px 14px;
+      text-align: right;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    tbody td:first-child,
+    tbody td:nth-child(2) { text-align: left; }
+
+    .ticker-badge {
+      display: inline-block;
+      background: rgba(108, 99, 255, 0.15);
+      color: var(--accent);
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.5px;
+    }
+
+    .gain-text  { color: var(--gain); }
+    .loss-text  { color: var(--loss); }
+    .neutral-text { color: var(--text-dim); }
+
+    .price-cell { font-weight: 600; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 48px 16px;
+      color: var(--text-dim);
+    }
+    .empty-state p { margin-top: 8px; font-size: 13px; }
+
+    /* ── Toast notification ── */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 13px;
+      transition: transform 0.3s ease;
+      z-index: 1000;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.error { border-color: var(--loss); color: var(--loss); }
+    #toast.success { border-color: var(--gain); color: var(--gain); }
+
+    /* ── Manual price input in table ── */
+    .manual-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 4px 7px;
+      width: 90px;
+      outline: none;
+    }
+    .manual-input:focus { border-color: var(--accent); }
+
+    /* ── Error indicator ── */
+    .price-error {
+      color: var(--text-dim);
+      font-size: 12px;
+      cursor: help;
+    }
+
+    /* ── Last updated ── */
+    .last-updated { font-size: 11px; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Aktien<span>Portfolio</span></h1>
+  <button class="btn btn-ghost" id="refreshBtn" onclick="refreshAllPrices()">
+    <span id="refreshIcon">↻</span> Kurse aktualisieren
+  </button>
+</header>
+
+<!-- Summary -->
+<div class="summary-grid">
+  <div class="card">
+    <div class="card-label">Investiert</div>
+    <div class="card-value" id="sumInvested">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Aktueller Wert</div>
+    <div class="card-value" id="sumCurrent">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Gewinn / Verlust</div>
+    <div class="card-value" id="sumPnL">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Rendite</div>
+    <div class="card-value" id="sumPct">—</div>
+  </div>
+</div>
+
+<!-- Add Position Form -->
+<div class="form-section">
+  <h2>Position hinzufügen</h2>
+  <form class="form-row" id="addForm" onsubmit="handleAddSubmit(event)">
+    <div class="field">
+      <label>Ticker-Symbol</label>
+      <input type="text" id="fTicker" placeholder="z. B. AAPL" required autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>Anzahl Aktien</label>
+      <input type="number" id="fShares" placeholder="z. B. 10" min="0.0001" step="any" required />
+    </div>
+    <div class="field">
+      <label>Kaufpreis (pro Aktie)</label>
+      <input type="number" id="fPrice" placeholder="z. B. 150.00" min="0" step="any" required />
+    </div>
+    <div class="field">
+      <label>Kaufdatum</label>
+      <input type="date" id="fDate" required />
+    </div>
+    <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
+  </form>
+</div>
+
+<!-- Positions Table -->
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Ticker</th>
+        <th>Kaufdatum</th>
+        <th>Stück</th>
+        <th>Kaufpreis</th>
+        <th>Aktuell</th>
+        <th>Investiert</th>
+        <th>Wert</th>
+        <th>G/V (€)</th>
+        <th>G/V (%)</th>
+        <th>Stand</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div id="emptyState" class="empty-state" style="display:none;">
+  <strong>Keine Positionen vorhanden</strong>
+  <p>Füge deine erste Position über das Formular oben hinzu.</p>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── Storage ──────────────────────────────────────────────────────────────
+  const STORAGE_KEY = 'stockPortfolio';
+
+  function loadPortfolio() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : { positions: [] };
+    } catch {
+      return { positions: [] };
+    }
+  }
+
+  function savePortfolio(data) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  // ── ID ───────────────────────────────────────────────────────────────────
+  function generateId() {
+    return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+  }
+
+  // ── Formatting ───────────────────────────────────────────────────────────
+  const fmtCurrency = new Intl.NumberFormat('de-DE', {
+    style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+  const fmtNumber = new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+
+  function fc(n) { return fmtCurrency.format(n); }
+  function fn(n) { return fmtNumber.format(n); }
+  function fp(n) { return (n >= 0 ? '+' : '') + fn(n) + ' %'; }
+  function fpnl(n) { return (n >= 0 ? '+' : '') + fc(n); }
+
+  function pnlClass(n) {
+    if (n > 0) return 'gain-text';
+    if (n < 0) return 'loss-text';
+    return 'neutral-text';
+  }
+
+  // ── API ──────────────────────────────────────────────────────────────────
+  async function fetchCurrentPrice(ticker) {
+    const encodedUrl = encodeURIComponent(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`
+    );
+    const proxyUrl = `https://corsproxy.io/?${encodedUrl}`;
+
+    const res = await fetch(proxyUrl, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta) throw new Error('Kein Ergebnis für diesen Ticker');
+
+    const price = meta.regularMarketPrice ?? meta.previousClose;
+    if (typeof price !== 'number') throw new Error('Kein Kurs verfügbar');
+    return price;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
+  function renderSummary(positions) {
+    const withPrice = positions.filter(p => p.currentPrice != null);
+    const allInvested = positions.reduce((s, p) => s + p.shares * p.purchasePrice, 0);
+    const currentVal  = withPrice.reduce((s, p) => s + p.shares * p.currentPrice, 0);
+    const invested    = withPrice.reduce((s, p) => s + p.shares * p.purchasePrice, 0);
+    const pnl         = currentVal - invested;
+    const pct         = invested > 0 ? (pnl / invested) * 100 : null;
+
+    document.getElementById('sumInvested').textContent = fc(allInvested);
+    document.getElementById('sumInvested').className   = 'card-value';
+
+    if (withPrice.length === 0) {
+      document.getElementById('sumCurrent').textContent = '—';
+      document.getElementById('sumCurrent').className   = 'card-value neutral';
+      document.getElementById('sumPnL').textContent     = '—';
+      document.getElementById('sumPnL').className       = 'card-value neutral';
+      document.getElementById('sumPct').textContent     = '—';
+      document.getElementById('sumPct').className       = 'card-value neutral';
+    } else {
+      document.getElementById('sumCurrent').textContent = fc(currentVal);
+      document.getElementById('sumCurrent').className   = 'card-value';
+
+      document.getElementById('sumPnL').textContent = fpnl(pnl);
+      document.getElementById('sumPnL').className   = 'card-value ' + (pnl > 0 ? 'gain' : pnl < 0 ? 'loss' : '');
+
+      document.getElementById('sumPct').textContent = pct !== null ? fp(pct) : '—';
+      document.getElementById('sumPct').className   = 'card-value ' + (pct > 0 ? 'gain' : pct < 0 ? 'loss' : '');
+    }
+  }
+
+  function renderTable(positions) {
+    const tbody = document.getElementById('tableBody');
+    const empty = document.getElementById('emptyState');
+
+    if (positions.length === 0) {
+      tbody.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = positions.map(p => {
+      const invested = p.shares * p.purchasePrice;
+      let priceCell, currentVal, pnlCell, pctCell;
+
+      if (p._loading) {
+        priceCell  = `<span class="spinner"></span>`;
+        currentVal = pnlCell = pctCell = '—';
+      } else if (p._error) {
+        priceCell = `<span class="price-error" title="${escHtml(p._error)}">Fehler ⚠</span>`;
+        currentVal = pnlCell = pctCell = '—';
+      } else if (p.currentPrice != null) {
+        const val = p.shares * p.currentPrice;
+        const pnl = val - invested;
+        const pct = (pnl / invested) * 100;
+        priceCell  = `<span class="price-cell">${fc(p.currentPrice)}</span>`;
+        currentVal = fc(val);
+        pnlCell    = `<span class="${pnlClass(pnl)}">${fpnl(pnl)}</span>`;
+        pctCell    = `<span class="${pnlClass(pct)}">${fp(pct)}</span>`;
+      } else {
+        priceCell  = `<input class="manual-input" type="number" min="0" step="any" placeholder="manuell" data-id="${p.id}" onchange="setManualPrice('${p.id}', this.value)" />`;
+        currentVal = pnlCell = pctCell = '—';
+      }
+
+      const lastUpdated = p.lastUpdated
+        ? new Date(p.lastUpdated).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+        : '—';
+
+      return `<tr data-id="${p.id}">
+        <td><span class="ticker-badge">${escHtml(p.ticker)}</span></td>
+        <td>${escHtml(p.purchaseDate)}</td>
+        <td>${fn(p.shares)}</td>
+        <td>${fc(p.purchasePrice)}</td>
+        <td>${priceCell}</td>
+        <td>${fc(invested)}</td>
+        <td>${currentVal}</td>
+        <td>${pnlCell}</td>
+        <td>${pctCell}</td>
+        <td><span class="last-updated">${lastUpdated}</span></td>
+        <td><button class="btn btn-danger" onclick="deletePosition('${p.id}')" title="Position löschen">✕</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function render() {
+    const { positions } = loadPortfolio();
+    renderTable(positions);
+    renderSummary(positions);
+  }
+
+  // ── Actions ──────────────────────────────────────────────────────────────
+  function handleAddSubmit(e) {
+    e.preventDefault();
+    const ticker       = document.getElementById('fTicker').value.trim().toUpperCase();
+    const shares       = parseFloat(document.getElementById('fShares').value);
+    const purchasePrice = parseFloat(document.getElementById('fPrice').value);
+    const purchaseDate = document.getElementById('fDate').value;
+
+    if (!ticker || isNaN(shares) || shares <= 0 || isNaN(purchasePrice) || purchasePrice < 0 || !purchaseDate) {
+      showToast('Bitte alle Felder korrekt ausfüllen.', 'error');
+      return;
+    }
+
+    const data = loadPortfolio();
+    data.positions.push({ id: generateId(), ticker, shares, purchasePrice, purchaseDate, currentPrice: null, lastUpdated: null });
+    savePortfolio(data);
+    document.getElementById('addForm').reset();
+    render();
+    showToast(`${ticker} hinzugefügt.`, 'success');
+  }
+
+  function deletePosition(id) {
+    const data = loadPortfolio();
+    const pos  = data.positions.find(p => p.id === id);
+    data.positions = data.positions.filter(p => p.id !== id);
+    savePortfolio(data);
+    render();
+    if (pos) showToast(`${pos.ticker} entfernt.`, 'success');
+  }
+
+  function setManualPrice(id, raw) {
+    const price = parseFloat(raw);
+    if (isNaN(price) || price <= 0) return;
+    const data = loadPortfolio();
+    const pos  = data.positions.find(p => p.id === id);
+    if (!pos) return;
+    pos.currentPrice = price;
+    pos.lastUpdated  = new Date().toISOString();
+    savePortfolio(data);
+    render();
+  }
+
+  // ── Price refresh ─────────────────────────────────────────────────────────
+  async function refreshAllPrices() {
+    const data = loadPortfolio();
+    if (data.positions.length === 0) { showToast('Keine Positionen vorhanden.', 'error'); return; }
+
+    const btn  = document.getElementById('refreshBtn');
+    const icon = document.getElementById('refreshIcon');
+    btn.disabled = true;
+    icon.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px;"></span>';
+
+    // Mark all as loading
+    data.positions.forEach(p => { p._loading = true; delete p._error; });
+    renderTable(data.positions);
+
+    const results = await Promise.allSettled(
+      data.positions.map(p => fetchCurrentPrice(p.ticker))
+    );
+
+    results.forEach((r, i) => {
+      const pos = data.positions[i];
+      delete pos._loading;
+      if (r.status === 'fulfilled') {
+        pos.currentPrice = r.value;
+        pos.lastUpdated  = new Date().toISOString();
+        delete pos._error;
+      } else {
+        pos._error = r.reason?.message ?? 'Unbekannter Fehler';
+      }
+    });
+
+    savePortfolio(data);
+    renderTable(data.positions);
+    renderSummary(data.positions);
+
+    const failed = results.filter(r => r.status === 'rejected').length;
+    if (failed === 0) {
+      showToast('Alle Kurse aktualisiert.', 'success');
+    } else {
+      showToast(`${data.positions.length - failed} aktualisiert, ${failed} fehlgeschlagen.`, 'error');
+    }
+
+    btn.disabled = false;
+    icon.textContent = '↻';
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  let toastTimer;
+  function showToast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className   = type ? `show ${type}` : 'show';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.className = type; }, 3000);
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    // Set today as default date
+    document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+    render();
+  });
+</script>
+</body>
+</html>
