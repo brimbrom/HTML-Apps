@@ -319,30 +319,6 @@
   </div>
 </div>
 
-<!-- Add Position Form -->
-<div class="form-section">
-  <h2>Position hinzufügen</h2>
-  <form class="form-row" id="addForm" onsubmit="handleAddSubmit(event)">
-    <div class="field">
-      <label>Ticker-Symbol</label>
-      <input type="text" id="fTicker" placeholder="z. B. AAPL" required autocomplete="off" />
-    </div>
-    <div class="field">
-      <label>Anzahl Aktien</label>
-      <input type="number" id="fShares" placeholder="z. B. 10" min="0.0001" step="any" required />
-    </div>
-    <div class="field">
-      <label>Kaufdatum</label>
-      <input type="date" id="fDate" required />
-    </div>
-    <div class="field">
-      <label>Kaufpreis (pro Aktie) <span id="priceStatus" class="price-status"></span></label>
-      <input type="number" id="fPrice" placeholder="wird ermittelt…" min="0" step="any" required />
-    </div>
-    <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
-  </form>
-</div>
-
 <!-- Positions Table -->
 <div class="table-wrapper">
   <table>
@@ -369,15 +345,39 @@
   <p>Füge deine erste Position über das Formular oben hinzu.</p>
 </div>
 
+<!-- Add Position Form -->
+<div class="form-section" style="margin-top:28px;">
+  <h2>Position hinzufügen</h2>
+  <form class="form-row" id="addForm" onsubmit="handleAddSubmit(event)">
+    <div class="field">
+      <label>Ticker-Symbol</label>
+      <input type="text" id="fTicker" placeholder="z. B. AAPL" required autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>Anzahl Aktien</label>
+      <input type="number" id="fShares" placeholder="z. B. 10" min="0.0001" step="any" required />
+    </div>
+    <div class="field">
+      <label>Kaufdatum</label>
+      <input type="date" id="fDate" required />
+    </div>
+    <div class="field">
+      <label>Kaufpreis (pro Aktie) <span id="priceStatus" class="price-status"></span></label>
+      <input type="number" id="fPrice" placeholder="wird ermittelt…" min="0" step="any" required />
+    </div>
+    <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
+  </form>
+</div>
+
 <div id="toast"></div>
 
 <script>
-  // ── Constants ───────────────────────────────────────────────────────────────────────────
+  // ── Constants ─────────────────────────────────────────────────────────────
   const STORAGE_KEY = 'stockPortfolio';
   const MS_PER_DAY  = 86400000;
   const POS_COLORS  = ['#22c55e','#f59e0b','#06b6d4','#ec4899','#8b5cf6','#14b8a6','#f97316','#a78bfa'];
 
-  // ── State ─────────────────────────────────────────────────────────────────────────────
+  // ── State ─────────────────────────────────────────────────────────────────
   let viewPrices   = {};
   let viewLoading  = {};
   let viewErrors   = {};
@@ -386,14 +386,14 @@
   const historyCache = {};   // 'TICKER_fromDate' → {dates[], prices{}}
   let chartInstance  = null;
 
-  // ── Storage ─────────────────────────────────────────────────────────────────────────
+  // ── Storage ───────────────────────────────────────────────────────────────
   function loadPortfolio() {
     try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : { positions: [] }; }
     catch { return { positions: [] }; }
   }
   function savePortfolio(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
 
-  // ── Date helpers ──────────────────────────────────────────────────────────────────
+  // ── Date helpers ──────────────────────────────────────────────────────────
   function generateId() { return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2); }
   function todayStr()   { return new Date().toISOString().split('T')[0]; }
   function dateStrToDay(d) { return Math.floor(new Date(d + 'T12:00:00Z').getTime() / MS_PER_DAY); }
@@ -402,7 +402,7 @@
     return new Date(d + 'T12:00:00Z').toLocaleDateString('de-DE', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  // ── Formatting ────────────────────────────────────────────────────────────────────
+  // ── Formatting ────────────────────────────────────────────────────────────
   const fmtCur = new Intl.NumberFormat('de-DE', { style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2 });
   const fmtNum = new Intl.NumberFormat('de-DE', { minimumFractionDigits:2, maximumFractionDigits:2 });
   function fc(n)   { return n != null ? fmtCur.format(n) : '—'; }
@@ -412,7 +412,7 @@
   function pnlClass(n) { return n > 0 ? 'gain-text' : n < 0 ? 'loss-text' : 'neutral-text'; }
   function escHtml(s)  { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-  // ── API: single date ────────────────────────────────────────────────────────────────
+  // ── API: single date ──────────────────────────────────────────────────────
   async function fetchHistoricalPrice(ticker, dateStr) {
     const key = ticker + '_' + dateStr;
     if (priceCache[key] != null) return priceCache[key];
@@ -439,7 +439,7 @@
     return cl[bestIdx];
   }
 
-  // ── API: full history for chart ───────────────────────────────────────────────────
+  // ── API: full history for chart ───────────────────────────────────────────
   async function fetchFullHistory(ticker, fromDate) {
     const key = 'hist_' + ticker + '_' + fromDate;
     if (historyCache[key]) return historyCache[key];
@@ -474,7 +474,7 @@
     return null;
   }
 
-  // ── Slider ────────────────────────────────────────────────────────────────────────────
+  // ── Slider ────────────────────────────────────────────────────────────────
   function updateSlider() {
     const { positions } = loadPortfolio();
     const slider = document.getElementById('dateSlider');
@@ -504,6 +504,7 @@
   let sliderDebounce;
   function onSliderInput() {
     updateSliderLabel();
+    // Move chart cursor immediately (no data fetch needed)
     if (chartInstance) chartInstance.update('none');
     clearTimeout(sliderDebounce);
     sliderDebounce = setTimeout(() => {
@@ -520,7 +521,7 @@
     loadViewPrices();
   }
 
-  // ── View prices ───────────────────────────────────────────────────────────────────
+  // ── View prices ───────────────────────────────────────────────────────────
   async function loadViewPrices() {
     const { positions } = loadPortfolio();
     if (positions.length === 0) return;
@@ -561,7 +562,8 @@
     showToast('Kurse aktualisiert.', 'success');
   }
 
-  // ── Chart ───────────────────────────────────────────────────────────────────────────
+  // ── Chart ─────────────────────────────────────────────────────────────────
+  // Plugin: draw a vertical line at selectedDate
   const sliderCursorPlugin = {
     id: 'sliderCursor',
     afterDraw(chart) {
@@ -599,11 +601,13 @@
       catch (e) { console.warn('History fetch failed for', t, e.message); }
     }));
 
+    // Union of all trading days
     const allDatesSet = new Set();
     Object.values(histories).forEach(h => { if (h) h.dates.forEach(d => allDatesSet.add(d)); });
     const labels = [...allDatesSet].sort();
     if (labels.length === 0) return null;
 
+    // Total portfolio value + cost basis per day
     const totalValues = [], costValues = [];
     const posDatasets = positions.map(() => []);
 
@@ -760,7 +764,7 @@
       `${count} Handelstage · ${formatDate(labels[0])} – ${formatDate(labels[count - 1])}`;
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
   function renderSummary(positions) {
     const allInvested = positions.reduce((s, p) => s + p.shares * p.purchasePrice, 0);
     document.getElementById('sumInvested').textContent = fc(allInvested);
@@ -824,7 +828,7 @@
     }).join('');
   }
 
-  // ── Inline editing ───────────────────────────────────────────────────────────────
+  // ── Inline editing ────────────────────────────────────────────────────────
   function makeEditable(posId, field, currentValue, cellEl) {
     if (cellEl.querySelector('.inline-edit-input')) return;
     const isDate = field === 'purchaseDate';
@@ -851,19 +855,27 @@
           if (pos) {
             if (isDate) {
               const oldDate = pos.purchaseDate;
+              const ticker  = pos.ticker;
               pos.purchaseDate = raw;
-              delete priceCache[pos.ticker + '_' + oldDate];
+              delete priceCache[ticker + '_' + oldDate];
               Object.keys(historyCache).forEach(k => {
-                if (k.startsWith('hist_' + pos.ticker + '_')) delete historyCache[k];
+                if (k.startsWith('hist_' + ticker + '_')) delete historyCache[k];
               });
+              savePortfolio(data);
+              render();
+              showToast(`${ticker}: Datum gespeichert, Kaufpreis wird ermittelt…`, 'success');
+              fetchHistoricalPrice(ticker, raw).then(newPrice => {
+                const d2 = loadPortfolio();
+                const p2 = d2.positions.find(x => x.id === posId);
+                if (p2) { p2.purchasePrice = newPrice; savePortfolio(d2); render(); showToast(`${ticker} aktualisiert.`, 'success'); }
+              }).catch(() => {}).finally(() => { loadViewPrices(); refreshChart(); });
             } else {
               pos.shares = parseFloat(raw);
+              savePortfolio(data);
+              render();
+              loadViewPrices();
+              showToast(`${pos.ticker} aktualisiert.`, 'success');
             }
-            savePortfolio(data);
-            render();
-            loadViewPrices();
-            if (isDate) refreshChart();
-            showToast(`${pos.ticker} aktualisiert.`, 'success');
             return;
           }
         }
@@ -885,7 +897,7 @@
     renderSummary(positions);
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────────────
+  // ── Actions ───────────────────────────────────────────────────────────────
   function handleAddSubmit(e) {
     e.preventDefault();
     const ticker        = document.getElementById('fTicker').value.trim().toUpperCase();
@@ -924,7 +936,7 @@
     renderTable(positions); renderSummary(positions);
   }
 
-  // ── Toast ───────────────────────────────────────────────────────────────────────────
+  // ── Toast ─────────────────────────────────────────────────────────────────
   let toastTimer;
   function showToast(msg, type = '') {
     const el = document.getElementById('toast');
@@ -933,7 +945,7 @@
     toastTimer = setTimeout(() => { el.className = type; }, 3000);
   }
 
-  // ── Auto-fill price in form ─────────────────────────────────────────────────────────
+  // ── Auto-fill price in form ───────────────────────────────────────────────
   let autofillDebounce;
   function triggerAutofill() { clearTimeout(autofillDebounce); autofillDebounce = setTimeout(doAutofill, 400); }
   async function doAutofill() {
@@ -954,7 +966,7 @@
     } finally { inp.disabled = false; }
   }
 
-  // ── Init ─────────────────────────────────────────────────────────────────────────────
+  // ── Init ──────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fDate').value = todayStr();
     selectedDate = todayStr();
