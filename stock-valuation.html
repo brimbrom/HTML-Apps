@@ -319,30 +319,6 @@
   </div>
 </div>
 
-<!-- Add Position Form -->
-<div class="form-section">
-  <h2>Position hinzufügen</h2>
-  <form class="form-row" id="addForm" onsubmit="handleAddSubmit(event)">
-    <div class="field">
-      <label>Ticker-Symbol</label>
-      <input type="text" id="fTicker" placeholder="z. B. AAPL" required autocomplete="off" />
-    </div>
-    <div class="field">
-      <label>Anzahl Aktien</label>
-      <input type="number" id="fShares" placeholder="z. B. 10" min="0.0001" step="any" required />
-    </div>
-    <div class="field">
-      <label>Kaufdatum</label>
-      <input type="date" id="fDate" required />
-    </div>
-    <div class="field">
-      <label>Kaufpreis (pro Aktie) <span id="priceStatus" class="price-status"></span></label>
-      <input type="number" id="fPrice" placeholder="wird ermittelt…" min="0" step="any" required />
-    </div>
-    <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
-  </form>
-</div>
-
 <!-- Positions Table -->
 <div class="table-wrapper">
   <table>
@@ -367,6 +343,30 @@
 <div id="emptyState" class="empty-state" style="display:none;">
   <strong>Keine Positionen vorhanden</strong>
   <p>Füge deine erste Position über das Formular oben hinzu.</p>
+</div>
+
+<!-- Add Position Form -->
+<div class="form-section" style="margin-top:28px;">
+  <h2>Position hinzufügen</h2>
+  <form class="form-row" id="addForm" onsubmit="handleAddSubmit(event)">
+    <div class="field">
+      <label>Ticker-Symbol</label>
+      <input type="text" id="fTicker" placeholder="z. B. AAPL" required autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>Anzahl Aktien</label>
+      <input type="number" id="fShares" placeholder="z. B. 10" min="0.0001" step="any" required />
+    </div>
+    <div class="field">
+      <label>Kaufdatum</label>
+      <input type="date" id="fDate" required />
+    </div>
+    <div class="field">
+      <label>Kaufpreis (pro Aktie) <span id="priceStatus" class="price-status"></span></label>
+      <input type="number" id="fPrice" placeholder="wird ermittelt…" min="0" step="any" required />
+    </div>
+    <button type="submit" class="btn btn-primary">+ Hinzufügen</button>
+  </form>
 </div>
 
 <div id="toast"></div>
@@ -855,19 +855,27 @@
           if (pos) {
             if (isDate) {
               const oldDate = pos.purchaseDate;
+              const ticker  = pos.ticker;
               pos.purchaseDate = raw;
-              delete priceCache[pos.ticker + '_' + oldDate];
+              delete priceCache[ticker + '_' + oldDate];
               Object.keys(historyCache).forEach(k => {
-                if (k.startsWith('hist_' + pos.ticker + '_')) delete historyCache[k];
+                if (k.startsWith('hist_' + ticker + '_')) delete historyCache[k];
               });
+              savePortfolio(data);
+              render();
+              showToast(`${ticker}: Datum gespeichert, Kaufpreis wird ermittelt…`, 'success');
+              fetchHistoricalPrice(ticker, raw).then(newPrice => {
+                const d2 = loadPortfolio();
+                const p2 = d2.positions.find(x => x.id === posId);
+                if (p2) { p2.purchasePrice = newPrice; savePortfolio(d2); render(); showToast(`${ticker} aktualisiert.`, 'success'); }
+              }).catch(() => {}).finally(() => { loadViewPrices(); refreshChart(); });
             } else {
               pos.shares = parseFloat(raw);
+              savePortfolio(data);
+              render();
+              loadViewPrices();
+              showToast(`${pos.ticker} aktualisiert.`, 'success');
             }
-            savePortfolio(data);
-            render();
-            loadViewPrices();
-            if (isDate) refreshChart();
-            showToast(`${pos.ticker} aktualisiert.`, 'success');
             return;
           }
         }
