@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sci-Fi Stream Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #050508;
+      --bg-card:     rgba(11, 11, 22, 0.92);
+      --bg-hover:    rgba(18, 18, 36, 0.97);
+      --cyan:        #00d4ff;
+      --cyan-dim:    rgba(0, 212, 255, 0.12);
+      --purple:      #8b5cf6;
+      --purple-dim:  rgba(139, 92, 246, 0.12);
+      --green:       #00ff88;
+      --netflix:     #e50914;
+      --prime:       #00a8e0;
+      --apple:       #c7c7cc;
+      --border:      rgba(0, 212, 255, 0.18);
+      --text:        #e2e2ef;
+      --dim:         #666688;
+      --abo:         #22c55e;
+      --leihen:      #eab308;
+      --none:        #2d2d40;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Starfield & Grid overlay ─────────────────────────── */
+    #starfield {
+      position: fixed; inset: 0;
+      pointer-events: none; z-index: 0;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none; z-index: 0;
+    }
+    .scan-line {
+      position: fixed; left: 0; top: 0;
+      width: 100%; height: 3px;
+      background: linear-gradient(to right, transparent 0%, var(--cyan) 50%, transparent 100%);
+      opacity: 0.25; pointer-events: none; z-index: 200;
+      animation: scanDown 10s linear infinite;
+    }
+    @keyframes scanDown { from { top: -3px; } to { top: 100vh; } }
+
+    /* ── Layout ───────────────────────────────────────────── */
+    .container {
+      position: relative; z-index: 1;
+      max-width: 1700px; margin: 0 auto;
+      padding: 24px 20px;
+    }
+
+    /* ── Header ───────────────────────────────────────────── */
+    header {
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(1.4rem, 4vw, 2.8rem);
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      color: var(--cyan);
+      text-shadow: 0 0 40px rgba(0,212,255,0.45), 0 0 80px rgba(0,212,255,0.18);
+      line-height: 1.15;
+    }
+    h1 .sub {
+      display: block;
+      font-size: 0.33em;
+      color: var(--purple);
+      letter-spacing: 0.3em;
+      text-shadow: 0 0 20px rgba(139,92,246,0.5);
+      margin-top: 6px;
+    }
+    .update-block {
+      display: flex; flex-direction: column;
+      align-items: flex-end; gap: 8px;
+    }
+    .live-badge {
+      display: flex; align-items: center; gap: 8px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.68rem; letter-spacing: 0.12em;
+      color: var(--green);
+    }
+    .pulse-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px var(--green);
+      animation: blink 2s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.75); } }
+    .update-dates {
+      font-size: 0.72rem; color: var(--dim);
+      text-align: right; line-height: 1.7;
+    }
+    .update-dates strong { color: var(--text); }
+    .update-dates .next { color: var(--cyan); opacity: 0.75; }
+
+    /* ── Stats Bar ────────────────────────────────────────── */
+    .stats-bar {
+      display: flex; gap: 12px; flex-wrap: wrap;
+    }
+    .stat-card {
+      flex: 1; min-width: 90px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex; flex-direction: column;
+      align-items: center; gap: 5px;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    .stat-card:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(0,212,255,0.1); }
+    .stat-num {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2rem; font-weight: 700; line-height: 1;
+      transition: all 0.3s;
+    }
+    .stat-label { font-size: 0.62rem; letter-spacing: 0.12em; color: var(--dim); text-transform: uppercase; }
+    .sc-total  .stat-num { color: var(--cyan); }
+    .sc-netflix .stat-num { color: var(--netflix); }
+    .sc-prime  .stat-num { color: var(--prime); }
+    .sc-apple  .stat-num { color: var(--apple); }
+    .sc-film   .stat-num { color: var(--purple); }
+    .sc-serie  .stat-num { color: var(--green); }
+
+    /* ── Controls ─────────────────────────────────────────── */
+    .controls {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin-bottom: 14px;
+      display: flex; flex-wrap: wrap;
+      gap: 22px; align-items: flex-end;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 9px; }
+    .ctrl-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem; letter-spacing: 0.18em;
+      color: var(--dim); text-transform: uppercase;
+    }
+    .search-wrap { flex: 1; min-width: 220px; }
+    #search {
+      width: 100%;
+      background: rgba(0,212,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 15px;
+      color: var(--text);
+      font-size: 0.88rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color 0.25s, box-shadow 0.25s;
+    }
+    #search:focus { border-color: var(--cyan); box-shadow: 0 0 18px rgba(0,212,255,0.14); }
+    #search::placeholder { color: var(--dim); }
+
+    .btn-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .fbtn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 7px;
+      color: var(--dim);
+      padding: 7px 15px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .fbtn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .fbtn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+    .fbtn.netflix-active { background: rgba(229,9,20,0.14); border-color: var(--netflix); color: var(--netflix); }
+    .fbtn.prime-active   { background: rgba(0,168,224,0.14); border-color: var(--prime);   color: var(--prime);   }
+    .fbtn.apple-active   { background: rgba(199,199,204,0.1); border-color: var(--apple);  color: var(--apple);   }
+
+    /* ── Genre Tag Filter ─────────────────────────────────── */
+    .genre-filter {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 24px;
+      margin-bottom: 14px;
+      display: flex; align-items: center;
+      gap: 14px; flex-wrap: wrap;
+    }
+    .genre-filter .ctrl-label { white-space: nowrap; }
+    .gtag-btn {
+      display: inline-flex; align-items: center;
+      padding: 4px 13px; border-radius: 20px;
+      border: 1px solid; cursor: pointer;
+      font-size: 0.72rem; font-weight: 500;
+      transition: all 0.2s; background: transparent;
+      font-family: 'Inter', sans-serif;
+      user-select: none;
+    }
+    .gtag-btn:hover { transform: translateY(-1px); filter: brightness(1.2); }
+    .gtag-btn.active { filter: brightness(1.3); }
+
+    /* ── Sort Bar ─────────────────────────────────────────── */
+    .sort-bar {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+      margin-bottom: 22px;
+    }
+    .sort-options { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .sort-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px; color: var(--dim);
+      padding: 7px 15px; cursor: pointer;
+      font-size: 0.72rem;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.06em;
+      transition: all 0.2s;
+      user-select: none;
+    }
+    .sort-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .sort-btn.active { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+    .view-toggle { display: flex; gap: 6px; }
+    .view-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 7px; color: var(--dim);
+      padding: 7px 13px; cursor: pointer;
+      font-size: 0.8rem; transition: all 0.2s;
+    }
+    .view-btn.active { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+    #results-count {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem; color: var(--dim);
+    }
+
+    /* ── Cards Container ──────────────────────────────────── */
+    #cards-container {
+      display: grid; gap: 20px; transition: all 0.3s;
+    }
+    #cards-container.grid-view {
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+    #cards-container.list-view { grid-template-columns: 1fr; }
+
+    /* ── Card ─────────────────────────────────────────────── */
+    .title-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+      position: relative;
+      animation: fadeUp 0.4s ease both;
+    }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    .title-card:hover {
+      border-color: rgba(0,212,255,0.45);
+      box-shadow: 0 0 35px rgba(0,212,255,0.1), 0 10px 40px rgba(0,0,0,0.55);
+      transform: translateY(-4px);
+    }
+    .new-card::after {
+      content: 'NEU';
+      position: absolute; top: 12px; right: 12px;
+      background: var(--green); color: #000;
+      font-size: 0.58rem; font-weight: 800;
+      font-family: 'Orbitron', sans-serif;
+      padding: 3px 9px; border-radius: 4px;
+      letter-spacing: 0.12em; z-index: 10;
+    }
+
+    /* Grid layout */
+    .grid-view .title-card { display: flex; flex-direction: column; }
+
+    /* ── Poster ───────────────────────────────────────────── */
+    .poster {
+      width: 100%;
+      position: relative; overflow: hidden;
+      flex-shrink: 0;
+    }
+    .grid-view .poster { aspect-ratio: 16/9; }
+    .list-view .poster { width: 220px; min-height: 140px; aspect-ratio: unset; }
+
+    .poster-bg {
+      position: absolute; inset: 0;
+      background-size: 200% 200%;
+      animation: gradShift 8s ease infinite;
+    }
+    @keyframes gradShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+
+    .poster-pattern {
+      position: absolute; inset: 0;
+      opacity: 0.08;
+      background-image: repeating-linear-gradient(
+        45deg, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 1px,
+        transparent 1px, transparent 12px
+      );
+    }
+    .poster-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to bottom, transparent 30%, rgba(11,11,22,0.95) 100%);
+    }
+    .poster-type {
+      position: absolute; bottom: 10px; left: 12px;
+      font-size: 0.62rem; font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.12em; padding: 3px 10px;
+      border-radius: 5px; z-index: 2;
+      background: rgba(0,0,0,0.65);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: rgba(255,255,255,0.9);
+    }
+    .poster-score {
+      position: absolute; bottom: 10px; right: 12px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.82rem; font-weight: 700;
+      color: #f5c518;
+      background: rgba(0,0,0,0.75);
+      padding: 3px 9px; border-radius: 5px; z-index: 2;
+    }
+
+    /* ── Card Body ────────────────────────────────────────── */
+    .card-body {
+      padding: 18px;
+      display: flex; flex-direction: column;
+      gap: 12px; flex: 1;
+    }
+    .card-title-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+    .card-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.95rem; font-weight: 700;
+      color: #fff; line-height: 1.3;
+    }
+    .card-meta {
+      font-size: 0.72rem; color: var(--dim);
+      white-space: nowrap;
+    }
+    .card-desc {
+      font-size: 0.8rem; color: var(--dim);
+      line-height: 1.58;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .genre-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+    .gtag {
+      font-size: 0.65rem; padding: 3px 9px;
+      border-radius: 14px; border: 1px solid;
+      font-weight: 500; letter-spacing: 0.04em;
+    }
+
+    /* ── Platform Availability ────────────────────────────── */
+    .avail-section {
+      background: rgba(0,0,0,0.25);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .avail-section-label {
+      font-size: 0.6rem; font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.15em; color: var(--dim);
+      text-transform: uppercase; margin-bottom: 2px;
+    }
+    .plat-row {
+      display: flex; align-items: center; gap: 9px;
+    }
+    .avail-light {
+      width: 11px; height: 11px; border-radius: 50%;
+      flex-shrink: 0; transition: box-shadow 0.3s;
+    }
+    .light-abo    { background: var(--abo);   box-shadow: 0 0 10px var(--abo),   0 0 3px var(--abo); }
+    .light-leihen { background: var(--leihen); box-shadow: 0 0 10px var(--leihen), 0 0 3px var(--leihen); }
+    .light-none   { background: var(--none); }
+    .plat-name {
+      font-size: 0.72rem; font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.04em; width: 82px; flex-shrink: 0;
+    }
+    .plat-status {
+      font-size: 0.72rem; font-weight: 500;
+    }
+    .s-abo    { color: var(--abo); }
+    .s-leihen { color: var(--leihen); }
+    .s-none   { color: var(--none); }
+
+    /* ── Card Footer ──────────────────────────────────────── */
+    .card-foot {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 10px;
+    }
+    .imdb-wrap { display: flex; align-items: center; gap: 7px; }
+    .imdb-badge {
+      background: #f5c518; color: #000;
+      font-size: 0.55rem; font-weight: 900;
+      padding: 2px 6px; border-radius: 4px;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.05em;
+    }
+    .imdb-val {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.1rem; font-weight: 700;
+      color: #f5c518;
+    }
+    .imdb-bar-wrap {
+      width: 55px; height: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px; overflow: hidden;
+    }
+    .imdb-fill {
+      height: 100%;
+      background: linear-gradient(to right, #f5c518, #ff9500);
+      border-radius: 3px;
+    }
+    .trailer-btn {
+      background: transparent;
+      border: 1px solid var(--purple);
+      color: var(--purple);
+      padding: 6px 14px;
+      border-radius: 7px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      letter-spacing: 0.08em;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .trailer-btn:hover {
+      background: var(--purple-dim);
+      box-shadow: 0 0 18px rgba(139,92,246,0.3);
+    }
+
+    /* ── List View overrides ──────────────────────────────── */
+    .list-view .title-card { display: flex; flex-direction: row; }
+    .list-view .card-body {
+      flex-direction: row; flex-wrap: wrap;
+      padding: 18px; gap: 16px;
+    }
+    .list-view .card-main { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 10px; }
+    .list-view .card-side { display: flex; flex-direction: column; gap: 12px; min-width: 200px; }
+
+    /* ── Empty state ──────────────────────────────────────── */
+    .empty {
+      grid-column: 1/-1;
+      text-align: center;
+      padding: 70px 20px;
+    }
+    .empty h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem; color: var(--cyan);
+      margin-bottom: 12px;
+    }
+    .empty p { color: var(--dim); font-size: 0.85rem; }
+
+    /* ── Footer ───────────────────────────────────────────── */
+    footer {
+      margin-top: 50px;
+      padding-top: 22px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--dim);
+      line-height: 2;
+    }
+
+    /* ── Scrollbar ────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.4); }
+
+    /* ── Responsive ───────────────────────────────────────── */
+    @media (max-width: 800px) {
+      .list-view .title-card { flex-direction: column; }
+      .list-view .poster { width: 100%; aspect-ratio: 16/9; min-height: unset; }
+      .list-view .card-body { flex-direction: column; }
+    }
+    @media (max-width: 600px) {
+      #cards-container.grid-view { grid-template-columns: 1fr; }
+      .header-top { flex-direction: column; }
+      .update-block { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="scan-line"></div>
+<canvas id="starfield"></canvas>
+
+<div class="container">
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-top">
+      <div>
+        <h1>
+          SCI-FI STREAM MATRIX
+          <span class="sub">STREAMING-DASHBOARD // WÖCHENTLICH AKTUALISIERT</span>
+        </h1>
+      </div>
+      <div class="update-block">
+        <div class="live-badge"><div class="pulse-dot"></div>LIVE STATUS</div>
+        <div class="update-dates">
+          Aktualisiert: <strong>04. Jun 2026</strong><br>
+          <span class="next">Nächstes Update: 11. Jun 2026</span>
+        </div>
+      </div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-card sc-total">
+        <span class="stat-num" id="s-total">0</span>
+        <span class="stat-label">Gesamt</span>
+      </div>
+      <div class="stat-card sc-netflix">
+        <span class="stat-num" id="s-netflix">0</span>
+        <span class="stat-label">Netflix</span>
+      </div>
+      <div class="stat-card sc-prime">
+        <span class="stat-num" id="s-prime">0</span>
+        <span class="stat-label">Prime Video</span>
+      </div>
+      <div class="stat-card sc-apple">
+        <span class="stat-num" id="s-apple">0</span>
+        <span class="stat-label">Apple TV+</span>
+      </div>
+      <div class="stat-card sc-film">
+        <span class="stat-num" id="s-film">0</span>
+        <span class="stat-label">Filme</span>
+      </div>
+      <div class="stat-card sc-serie">
+        <span class="stat-num" id="s-serie">0</span>
+        <span class="stat-label">Serien</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Controls ────────────────────────────────────────────────────────── -->
+  <div class="controls">
+    <div class="ctrl-group search-wrap">
+      <div class="ctrl-label">Suche</div>
+      <input type="text" id="search" placeholder="Titel, Genre oder Beschreibung …">
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Plattform</div>
+      <div class="btn-row">
+        <button class="fbtn active" data-filter="platform" data-value="all">Alle</button>
+        <button class="fbtn" data-filter="platform" data-value="netflix">▶ Netflix</button>
+        <button class="fbtn" data-filter="platform" data-value="prime">▶ Prime Video</button>
+        <button class="fbtn" data-filter="platform" data-value="apple">▶ Apple TV+</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Typ</div>
+      <div class="btn-row">
+        <button class="fbtn active" data-filter="type" data-value="all">Alle</button>
+        <button class="fbtn" data-filter="type" data-value="Film">🎬 Filme</button>
+        <button class="fbtn" data-filter="type" data-value="Serie">📺 Serien</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Verfügbarkeit</div>
+      <div class="btn-row">
+        <button class="fbtn active" data-filter="avail" data-value="all">Alle</button>
+        <button class="fbtn" data-filter="avail" data-value="abo">🟢 Im Abo</button>
+        <button class="fbtn" data-filter="avail" data-value="leihen">🟡 Nur Leihen</button>
+        <button class="fbtn" data-filter="avail" data-value="new">✨ Neuheiten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Genre Tag Filter ─────────────────────────────────────────────────── -->
+  <div class="genre-filter">
+    <span class="ctrl-label" style="white-space:nowrap">Genre-Filter</span>
+    <div id="gtag-filter" class="btn-row" style="flex-wrap:wrap"></div>
+  </div>
+
+  <!-- ── Sort Bar ─────────────────────────────────────────────────────────── -->
+  <div class="sort-bar">
+    <div class="sort-options">
+      <span class="ctrl-label">SORTIEREN</span>
+      <button class="sort-btn active" data-sort="imdb">IMDB ↕</button>
+      <button class="sort-btn" data-sort="year">Jahr ↕</button>
+      <button class="sort-btn" data-sort="title">A – Z ↕</button>
+      <button class="sort-btn" data-sort="new">Neuheiten</button>
+    </div>
+    <span id="results-count" class="ctrl-label">— Ergebnisse</span>
+    <div class="view-toggle">
+      <button class="view-btn active" id="btn-grid">⊞ Grid</button>
+      <button class="view-btn" id="btn-list">☰ Liste</button>
+    </div>
+  </div>
+
+  <!-- ── Cards ────────────────────────────────────────────────────────────── -->
+  <div id="cards-container" class="grid-view"></div>
+
+  <!-- ── Footer ───────────────────────────────────────────────────────────── -->
+  <footer>
+    Scores: IMDb · Plattformverfügbarkeit für Deutschland (kann regional abweichen)<br>
+    Dashboard wird wöchentlich manuell aktualisiert · Alle Angaben ohne Gewähr
+  </footer>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────────────────────────────────────
+const TITLES = [
+  // ── Netflix ──────────────────────────────────────────────────────────────
+  {
+    id: 1, title: "3 Body Problem", year: 2024, type: "Serie",
+    genres: ["Space Opera", "Sci-Fi", "Thriller"],
+    imdb: 7.5,
+    desc: "Fünf brillante Freunde erleben, wie ihr Leben durch den ersten Kontakt mit einer außerirdischen Zivilisation erschüttert wird, die plant, die Erde in 400 Jahren zu zerstören.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "3 Body Problem Netflix official trailer",
+    seasons: 1, episodes: 8, isNew: true
+  },
+  {
+    id: 2, title: "Rebel Moon – Teil 1 & 2", year: 2024, type: "Film",
+    genres: ["Space Opera", "Action", "Sci-Fi"],
+    imdb: 5.4,
+    desc: "Eine friedliche Kolonie am Rande der Galaxis wird von den Truppen eines tyrannischen Regenten bedroht. Eine mysteriöse Fremde sucht Krieger als letzte Hoffnung.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Rebel Moon Netflix Trailer Deutsch",
+    seasons: null, episodes: null, isNew: false
+  },
+  {
+    id: 3, title: "Atlas", year: 2024, type: "Film",
+    genres: ["KI/Robotik", "Action", "Thriller"],
+    imdb: 5.4,
+    desc: "Eine KI-Analytikerin muss bei ihrer gefährlichsten Mission auf einen Roboter-Kampfanzug vertrauen, um einen feindseligen KI-Soldaten zu stoppen, der Millionen Leben bedroht.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Atlas 2024 Netflix Trailer Jennifer Lopez",
+    seasons: null, episodes: null, isNew: false
+  },
+  {
+    id: 4, title: "Electric State", year: 2025, type: "Film",
+    genres: ["Cyberpunk", "KI/Robotik", "Postapokalyptisch"],
+    imdb: 5.4,
+    desc: "In einer retrofuturistischen Alternativwelt reist ein junges Waisenmädchen mit einem geheimnisvollen Roboter durch das verwüstete amerikanische Hinterland, um ihren Bruder zu finden.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Electric State Netflix 2025 official trailer",
+    seasons: null, episodes: null, isNew: true
+  },
+  {
+    id: 5, title: "Altered Carbon", year: 2018, type: "Serie",
+    genres: ["Cyberpunk", "Noir", "Thriller"],
+    imdb: 8.0,
+    desc: "In einer Zukunft, in der Bewusstsein in neue Körper übertragen werden kann, untersucht ein reaktivierter Ex-Soldat einen Mordfall unter den unsterblichen Reichen der Gesellschaft.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Altered Carbon Netflix official trailer",
+    seasons: 2, episodes: 18, isNew: false
+  },
+  {
+    id: 6, title: "Dark", year: 2017, type: "Serie",
+    genres: ["Zeitreise", "Mystery", "Thriller"],
+    imdb: 8.8,
+    desc: "Als Kinder in der deutschen Kleinstadt Winden verschwinden, enthüllen sich verwirrende Zeitreisen und dunkle Familiengeheimnisse, die vier Familien über Generationen hinweg verbinden.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Dark Netflix Serie Trailer Deutsch",
+    seasons: 3, episodes: 26, isNew: false
+  },
+  {
+    id: 7, title: "Lost in Space", year: 2018, type: "Serie",
+    genres: ["Space Opera", "Abenteuer", "Familie"],
+    imdb: 7.3,
+    desc: "Die Familie Robinson kämpft auf einem fremden Planeten ums Überleben, nachdem ihre Kolonisierungsmission scheitert – und stellt sich einem gefährlichen feindlichen Roboter.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Lost in Space Netflix trailer 2018",
+    seasons: 3, episodes: 28, isNew: false
+  },
+  {
+    id: 8, title: "Leave the World Behind", year: 2023, type: "Film",
+    genres: ["Dystopisch", "Thriller", "Mystery"],
+    imdb: 6.6,
+    desc: "Während ein Familienurlaub im Haus auf dem Land durch mysteriöse Ereignisse jäh unterbrochen wird, müssen zwei fremde Familien trotz Misstrauen gemeinsam überleben.",
+    platforms: { netflix: "abo", prime: null, apple: null },
+    trailer: "Leave the World Behind Netflix trailer",
+    seasons: null, episodes: null, isNew: false
+  },
+  // ── Amazon Prime Video ────────────────────────────────────────────────────
+  {
+    id: 9, title: "The Peripheral", year: 2022, type: "Serie",
+    genres: ["Cyberpunk", "Zeitreise", "Thriller"],
+    imdb: 7.5,
+    desc: "Flynne Fisher entdeckt, dass die Virtual-Reality-Simulation, in der sie spielt, in Wirklichkeit eine Verbindung in die ferne Zukunft ist – mit tödlichen Konsequenzen für beide Zeitlinien.",
+    platforms: { netflix: null, prime: "abo", apple: null },
+    trailer: "The Peripheral Amazon Prime trailer",
+    seasons: 1, episodes: 8, isNew: false
+  },
+  {
+    id: 10, title: "The Expanse", year: 2015, type: "Serie",
+    genres: ["Space Opera", "Hard-SF", "Politisch"],
+    imdb: 8.5,
+    desc: "Zwei Jahrhunderte in der Zukunft: Die Menschheit hat das Sonnensystem besiedelt. Ein vermisstes Mädchen und ein entdecktes Raumschiff drohen einen interplanetaren Krieg auszulösen.",
+    platforms: { netflix: null, prime: "abo", apple: null },
+    trailer: "The Expanse Amazon Prime official trailer",
+    seasons: 6, episodes: 62, isNew: false
+  },
+  {
+    id: 11, title: "Fallout", year: 2024, type: "Serie",
+    genres: ["Postapokalyptisch", "Action", "Dystopisch"],
+    imdb: 8.5,
+    desc: "Basierend auf dem Kultspiel: Generationen nach einem Atomkrieg verlässt eine naive Vault-Bewohnerin ihren unterirdischen Bunker und entdeckt die brutale Oberfläche der Wasteland.",
+    platforms: { netflix: null, prime: "abo", apple: null },
+    trailer: "Fallout Amazon Prime Serie 2024 official trailer",
+    seasons: 1, episodes: 8, isNew: true
+  },
+  {
+    id: 12, title: "Tales from the Loop", year: 2020, type: "Serie",
+    genres: ["Sci-Fi", "Mystery", "Drama"],
+    imdb: 7.7,
+    desc: "Bewohner einer verschneiten Kleinstadt erleben wundersame und stille Ereignisse im Zusammenhang mit einer Maschine unter ihrer Stadt, die das Unmögliche möglich macht.",
+    platforms: { netflix: null, prime: "abo", apple: null },
+    trailer: "Tales from the Loop Amazon Prime trailer",
+    seasons: 1, episodes: 8, isNew: false
+  },
+  {
+    id: 13, title: "Upload", year: 2020, type: "Serie",
+    genres: ["KI/Robotik", "Komödie", "Sci-Fi"],
+    imdb: 7.9,
+    desc: "In einer nahen Zukunft kann man sein Bewusstsein nach dem Tod in ein Luxus-Resort hochladen. Ein verstorbener junger Programmierer erkundet sein digitales Nachleben voller Absurditäten.",
+    platforms: { netflix: null, prime: "abo", apple: null },
+    trailer: "Upload Amazon Prime Video trailer",
+    seasons: 3, episodes: 24, isNew: false
+  },
+  {
+    id: 14, title: "Outer Range", year: 2022, type: "Serie",
+    genres: ["Mystery", "Zeitreise", "Western-SF"],
+    imdb: 7.4,
+    desc: "Ein Wyoming-Rancher entdeckt ein bodenlos tiefes Loch auf seinem Land, das ihn in ein rätselhaftes Geheimnis um Zeit, Identität und die Natur der Realität hineinsaugt.",
+    platforms: { netflix: null, prime: "abo", apple: null },
+    trailer: "Outer Range Amazon Prime trailer 2022",
+    seasons: 2, episodes: 16, isNew: false
+  },
+  // ── Apple TV+ ─────────────────────────────────────────────────────────────
+  {
+    id: 15, title: "Foundation", year: 2021, type: "Serie",
+    genres: ["Space Opera", "Hard-SF", "Politisch"],
+    imdb: 7.4,
+    desc: "Basierend auf Isaac Asimovs Klassiker: Mathematiker Hari Seldon sagt den Untergang des galaktischen Imperiums voraus und plant mit einer Enzyklopädie das Überleben der Menschheit.",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "Foundation Apple TV+ official trailer",
+    seasons: 3, episodes: 30, isNew: true
+  },
+  {
+    id: 16, title: "Severance", year: 2022, type: "Serie",
+    genres: ["Dystopisch", "Thriller", "Mystery"],
+    imdb: 8.7,
+    desc: "Mitarbeiter von Lumon Industries haben ihr Arbeitsgedächtnis chirurgisch von ihrem Privatleben getrennt – bis Risse im System beginnen, ihre gespaltene Identität zu destabilisieren.",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "Severance Apple TV+ official trailer",
+    seasons: 2, episodes: 19, isNew: true
+  },
+  {
+    id: 17, title: "For All Mankind", year: 2019, type: "Serie",
+    genres: ["Space Opera", "Alt-Geschichte", "Drama"],
+    imdb: 8.1,
+    desc: "Was wäre, wenn die Sowjetunion als erste auf dem Mond gelandet wäre? In dieser Alternativwelt führt der ewige Wettlauf im All zu einer radikalen gesellschaftlichen Entwicklung.",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "For All Mankind Apple TV+ trailer",
+    seasons: 4, episodes: 40, isNew: false
+  },
+  {
+    id: 18, title: "Silo", year: 2023, type: "Serie",
+    genres: ["Dystopisch", "Mystery", "Thriller"],
+    imdb: 8.4,
+    desc: "In einem gigantischen unterirdischen Silo kämpft die letzte Menschheit ums Überleben – und gegen die Geheimnisse ihrer eigenen Geschichte und den Ursprung ihrer Einkerkerung.",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "Silo Apple TV+ official trailer",
+    seasons: 2, episodes: 20, isNew: true
+  },
+  {
+    id: 19, title: "Constellation", year: 2024, type: "Serie",
+    genres: ["Psycho-Thriller", "Sci-Fi", "Mystery"],
+    imdb: 7.1,
+    desc: "Eine Astronautin kehrt nach einem Unfall auf der ISS zur Erde zurück und stellt fest, dass die Welt sich verändert hat – oder war es nie so, wie sie sie in Erinnerung hatte?",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "Constellation Apple TV+ 2024 official trailer",
+    seasons: 1, episodes: 8, isNew: true
+  },
+  {
+    id: 20, title: "Invasion", year: 2021, type: "Serie",
+    genres: ["Sci-Fi", "Thriller", "Drama"],
+    imdb: 5.8,
+    desc: "Eine außerirdische Invasion aus der subjektiven Perspektive verschiedener Menschen rund um den Globus – chaotisch, langsam eskalierend und menschlich zutiefst.",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "Invasion Apple TV+ trailer 2021",
+    seasons: 3, episodes: 30, isNew: false
+  },
+  // ── Multi-Plattform ───────────────────────────────────────────────────────
+  {
+    id: 21, title: "Dune: Part Two", year: 2024, type: "Film",
+    genres: ["Space Opera", "Epos", "Action"],
+    imdb: 8.5,
+    desc: "Paul Atreides schließt sich den Fremen an und beginnt einen epischen Rachefeldzug gegen die Harkonnen – während er seiner messianischen Bestimmung zu entkommen versucht.",
+    platforms: { netflix: null, prime: "leihen", apple: "leihen" },
+    trailer: "Dune Part Two 2024 official trailer deutsch",
+    seasons: null, episodes: null, isNew: false
+  },
+  {
+    id: 22, title: "Kingdom of the Planet of the Apes", year: 2024, type: "Film",
+    genres: ["Postapokalyptisch", "Action", "Sci-Fi"],
+    imdb: 6.8,
+    desc: "Generationen nach Cäsars Herrschaft reist ein junger Schimpanse durch eine von Affen beherrschte Welt und wird gezwungen, die wahre Geschichte seiner Zivilisation zu hinterfragen.",
+    platforms: { netflix: null, prime: "leihen", apple: "leihen" },
+    trailer: "Kingdom of the Planet of the Apes 2024 trailer",
+    seasons: null, episodes: null, isNew: true
+  },
+  {
+    id: 23, title: "A Quiet Place: Day One", year: 2024, type: "Film",
+    genres: ["Horror-SF", "Thriller", "Postapokalyptisch"],
+    imdb: 7.0,
+    desc: "Der Ursprung des Alien-Angriffs auf New York City: Wie beginnt die Apokalypse für Menschen, die inmitten der blinden, geräuschempfindlichen Monster überleben müssen?",
+    platforms: { netflix: null, prime: "leihen", apple: "leihen" },
+    trailer: "A Quiet Place Day One 2024 official trailer",
+    seasons: null, episodes: null, isNew: true
+  },
+  {
+    id: 24, title: "Hello Tomorrow!", year: 2023, type: "Serie",
+    genres: ["Retro-Futurismus", "Drama", "Sci-Fi"],
+    imdb: 7.6,
+    desc: "In einer retrofuturistischen Alternativwelt der 1950er Jahre verkauft ein charismatischer Vertreter Mondgrundstücke – und führt damit sich selbst und andere in ein gefährliches Spiel.",
+    platforms: { netflix: null, prime: null, apple: "abo" },
+    trailer: "Hello Tomorrow Apple TV+ official trailer",
+    seasons: 1, episodes: 10, isNew: false
+  }
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GENRE STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const GENRE_STYLE = {
+  "Space Opera":      { color: "#8b5cf6", bg: "rgba(139,92,246,0.14)" },
+  "Cyberpunk":        { color: "#ff0080", bg: "rgba(255,0,128,0.13)"  },
+  "Dystopisch":       { color: "#ff6b35", bg: "rgba(255,107,53,0.13)" },
+  "Zeitreise":        { color: "#00bfff", bg: "rgba(0,191,255,0.12)"  },
+  "KI/Robotik":       { color: "#00ff88", bg: "rgba(0,255,136,0.12)"  },
+  "Thriller":         { color: "#fcd34d", bg: "rgba(252,211,77,0.12)" },
+  "Mystery":          { color: "#c084fc", bg: "rgba(192,132,252,0.13)"},
+  "Horror-SF":        { color: "#ff4444", bg: "rgba(255,68,68,0.13)"  },
+  "Postapokalyptisch":{ color: "#fb923c", bg: "rgba(251,146,60,0.13)" },
+  "Hard-SF":          { color: "#34d399", bg: "rgba(52,211,153,0.12)" },
+  "Action":           { color: "#60a5fa", bg: "rgba(96,165,250,0.11)" },
+  "Drama":            { color: "#a78bfa", bg: "rgba(167,139,250,0.11)"},
+  "Sci-Fi":           { color: "#67e8f9", bg: "rgba(103,232,249,0.11)"},
+  "Noir":             { color: "#94a3b8", bg: "rgba(148,163,184,0.11)"},
+  "Komödie":          { color: "#fbbf24", bg: "rgba(251,191,36,0.11)" },
+  "Politisch":        { color: "#86efac", bg: "rgba(134,239,172,0.11)"},
+  "Psycho-Thriller":  { color: "#f472b6", bg: "rgba(244,114,182,0.12)"},
+  "Epos":             { color: "#fde68a", bg: "rgba(253,230,138,0.11)"},
+  "Alt-Geschichte":   { color: "#6ee7b7", bg: "rgba(110,231,183,0.11)"},
+  "Abenteuer":        { color: "#4ade80", bg: "rgba(74,222,128,0.11)" },
+  "Familie":          { color: "#fb7185", bg: "rgba(251,113,133,0.11)"},
+  "Western-SF":       { color: "#d97706", bg: "rgba(217,119,6,0.12)"  },
+  "Retro-Futurismus": { color: "#e879f9", bg: "rgba(232,121,249,0.12)"},
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POSTER GRADIENTS
+// ─────────────────────────────────────────────────────────────────────────────
+const POSTER_GRAD = {
+  "Space Opera":       "linear-gradient(135deg, #000428, #002c6e, #1a0033)",
+  "Cyberpunk":         "linear-gradient(135deg, #0a001a, #003322, #1a0033)",
+  "Dystopisch":        "linear-gradient(135deg, #1a0500, #4a1200, #1a0000)",
+  "Zeitreise":         "linear-gradient(135deg, #000d26, #001c55, #000a1a)",
+  "KI/Robotik":        "linear-gradient(135deg, #001022, #002a3a, #001022)",
+  "Thriller":          "linear-gradient(135deg, #1a0000, #3a000a, #0a0a0a)",
+  "Mystery":           "linear-gradient(135deg, #120026, #2a0046, #0d0d1a)",
+  "Horror-SF":         "linear-gradient(135deg, #1a0000, #3a0000, #0a0000)",
+  "Postapokalyptisch": "linear-gradient(135deg, #1a0d00, #3a1e00, #0a0800)",
+  "Hard-SF":           "linear-gradient(135deg, #000d1a, #001530, #000a14)",
+  "Sci-Fi":            "linear-gradient(135deg, #000d1a, #001a30, #0a1020)",
+  "Psycho-Thriller":   "linear-gradient(135deg, #0d0020, #1a0040, #0a000d)",
+  "Retro-Futurismus":  "linear-gradient(135deg, #0a001a, #1a003a, #000a1a)",
+  "default":           "linear-gradient(135deg, #0d0d1a, #1a1a2e, #0a0a14)",
+};
+
+function posterGrad(genres) {
+  for (const g of genres) {
+    if (POSTER_GRAD[g]) return POSTER_GRAD[g];
+  }
+  return POSTER_GRAD.default;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+const state = {
+  platform: "all",
+  type: "all",
+  avail: "all",
+  genres: new Set(),
+  search: "",
+  sort: "imdb",
+  sortDir: "desc",
+  view: "grid",
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILTER & SORT
+// ─────────────────────────────────────────────────────────────────────────────
+function matchPlatform(t) {
+  if (state.platform === "all") return true;
+  return t.platforms[state.platform] !== null && t.platforms[state.platform] !== undefined;
+}
+
+function matchAvail(t) {
+  if (state.avail === "all") return true;
+  if (state.avail === "new") return t.isNew;
+  const vals = Object.values(t.platforms).filter(Boolean);
+  if (state.avail === "abo")    return vals.includes("abo");
+  if (state.avail === "leihen") return vals.length > 0 && !vals.includes("abo");
+  return true;
+}
+
+function matchGenre(t) {
+  if (state.genres.size === 0) return true;
+  return [...state.genres].every(g => t.genres.includes(g));
+}
+
+function matchSearch(t) {
+  if (!state.search) return true;
+  const q = state.search.toLowerCase();
+  return t.title.toLowerCase().includes(q)
+    || t.desc.toLowerCase().includes(q)
+    || t.genres.some(g => g.toLowerCase().includes(q));
+}
+
+function filtered() {
+  return TITLES.filter(t =>
+    matchPlatform(t) && matchAvail(t) && matchGenre(t) && matchSearch(t) &&
+    (state.type === "all" || t.type === state.type)
+  );
+}
+
+function sorted(list) {
+  return [...list].sort((a, b) => {
+    let av, bv;
+    switch (state.sort) {
+      case "imdb":  av = a.imdb;  bv = b.imdb;  break;
+      case "year":  av = a.year;  bv = b.year;  break;
+      case "title": av = a.title.toLowerCase(); bv = b.title.toLowerCase(); break;
+      case "new":   av = a.isNew ? 1 : 0; bv = b.isNew ? 1 : 0; break;
+      default:      return 0;
+    }
+    if (av < bv) return state.sortDir === "desc" ? 1 : -1;
+    if (av > bv) return state.sortDir === "desc" ? -1 : 1;
+    return 0;
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER CARD
+// ─────────────────────────────────────────────────────────────────────────────
+const PLATMETA = [
+  { key: "netflix", name: "Netflix",    color: "#e50914" },
+  { key: "prime",   name: "Prime Video", color: "#00a8e0" },
+  { key: "apple",   name: "Apple TV+",  color: "#c7c7cc" },
+];
+
+function platHTML(t) {
+  return PLATMETA.map(p => {
+    const s = t.platforms[p.key];
+    const dot   = s === "abo" ? "light-abo" : s === "leihen" ? "light-leihen" : "light-none";
+    const scls  = s === "abo" ? "s-abo" : s === "leihen" ? "s-leihen" : "s-none";
+    const slabel = s === "abo" ? "Im Abo ✓" : s === "leihen" ? "Leihen / Kaufen" : "Nicht verfügbar";
+    const nameColor = s ? p.color : "var(--none)";
+    return `<div class="plat-row">
+      <div class="avail-light ${dot}"></div>
+      <span class="plat-name" style="color:${nameColor}">${p.name}</span>
+      <span class="plat-status ${scls}">${slabel}</span>
+    </div>`;
+  }).join("");
+}
+
+function tagsHTML(genres) {
+  return genres.map(g => {
+    const s = GENRE_STYLE[g] || { color: "#888", bg: "rgba(128,128,128,0.1)" };
+    return `<span class="gtag" style="color:${s.color};background:${s.bg};border-color:${s.color}33">${g}</span>`;
+  }).join("");
+}
+
+function cardHTML(t, i, isGrid) {
+  const meta = t.type === "Serie" && t.seasons
+    ? ` · ${t.seasons} Staffel${t.seasons>1?"n":""} ${t.episodes ? `· ${t.episodes} Ep.` : ""}`
+    : "";
+  const trailerUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(t.trailer)}`;
+  const barW = Math.round(t.imdb / 10 * 100);
+  const grad = posterGrad(t.genres);
+  const delay = `${i * 0.035}s`;
+
+  if (isGrid) {
+    return `
+    <div class="title-card ${t.isNew ? "new-card" : ""}" style="animation-delay:${delay}">
+      <div class="poster">
+        <div class="poster-bg" style="background:${grad}"></div>
+        <div class="poster-pattern"></div>
+        <div class="poster-overlay"></div>
+        <div class="poster-type">${t.type.toUpperCase()}</div>
+        <div class="poster-score">★ ${t.imdb}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title-row">
+          <span class="card-title">${t.title}</span>
+          <span class="card-meta">(${t.year}${meta})</span>
+        </div>
+        <div class="genre-tags">${tagsHTML(t.genres)}</div>
+        <div class="card-desc">${t.desc}</div>
+        <div class="avail-section">
+          <div class="avail-section-label">Verfügbarkeits-Ampel</div>
+          ${platHTML(t)}
+        </div>
+        <div class="card-foot">
+          <div class="imdb-wrap">
+            <span class="imdb-badge">IMDb</span>
+            <span class="imdb-val">${t.imdb}</span>
+            <div class="imdb-bar-wrap"><div class="imdb-fill" style="width:${barW}%"></div></div>
+          </div>
+          <a class="trailer-btn" href="${trailerUrl}" target="_blank" rel="noopener noreferrer">▶ TRAILER</a>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    return `
+    <div class="title-card ${t.isNew ? "new-card" : ""}" style="animation-delay:${delay}">
+      <div class="poster">
+        <div class="poster-bg" style="background:${grad}"></div>
+        <div class="poster-pattern"></div>
+        <div class="poster-overlay"></div>
+        <div class="poster-type">${t.type.toUpperCase()}</div>
+        <div class="poster-score">★ ${t.imdb}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-main">
+          <div class="card-title-row">
+            <span class="card-title">${t.title}</span>
+            <span class="card-meta">(${t.year}${meta})</span>
+          </div>
+          <div class="genre-tags">${tagsHTML(t.genres)}</div>
+          <div class="card-desc" style="-webkit-line-clamp:4">${t.desc}</div>
+          <div class="card-foot" style="border:none;padding:0;margin-top:auto">
+            <div class="imdb-wrap">
+              <span class="imdb-badge">IMDb</span>
+              <span class="imdb-val">${t.imdb}</span>
+              <div class="imdb-bar-wrap"><div class="imdb-fill" style="width:${barW}%"></div></div>
+            </div>
+            <a class="trailer-btn" href="${trailerUrl}" target="_blank" rel="noopener noreferrer">▶ TRAILER</a>
+          </div>
+        </div>
+        <div class="card-side">
+          <div class="avail-section" style="margin-top:0">
+            <div class="avail-section-label">Verfügbarkeits-Ampel</div>
+            ${platHTML(t)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
+function render() {
+  const list = sorted(filtered());
+  const container = document.getElementById("cards-container");
+  const isGrid = state.view === "grid";
+  container.className = isGrid ? "grid-view" : "list-view";
+
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty">
+      <h3>KEINE ERGEBNISSE</h3>
+      <p>Keine Titel entsprechen den gewählten Filtern.<br>Versuche andere Filtereinstellungen.</p>
+    </div>`;
+  } else {
+    container.innerHTML = list.map((t, i) => cardHTML(t, i, isGrid)).join("");
+  }
+
+  document.getElementById("results-count").textContent =
+    `${list.length} Ergebnis${list.length !== 1 ? "se" : ""}`;
+
+  updateStats(list);
+}
+
+function updateStats(list) {
+  document.getElementById("s-total").textContent   = list.length;
+  document.getElementById("s-netflix").textContent = list.filter(t => t.platforms.netflix).length;
+  document.getElementById("s-prime").textContent   = list.filter(t => t.platforms.prime).length;
+  document.getElementById("s-apple").textContent   = list.filter(t => t.platforms.apple).length;
+  document.getElementById("s-film").textContent    = list.filter(t => t.type === "Film").length;
+  document.getElementById("s-serie").textContent   = list.filter(t => t.type === "Serie").length;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GENRE TAG FILTER SETUP
+// ─────────────────────────────────────────────────────────────────────────────
+function buildGenreFilter() {
+  const allGenres = [...new Set(TITLES.flatMap(t => t.genres))].sort();
+  const wrap = document.getElementById("gtag-filter");
+  wrap.innerHTML = allGenres.map(g => {
+    const s = GENRE_STYLE[g] || { color: "#888", bg: "rgba(128,128,128,0.1)" };
+    return `<button class="gtag-btn" data-genre="${g}"
+      style="color:${s.color};border-color:${s.color}66;background:transparent"
+      >${g}</button>`;
+  }).join("");
+
+  wrap.addEventListener("click", e => {
+    const btn = e.target.closest(".gtag-btn");
+    if (!btn) return;
+    const g = btn.dataset.genre;
+    const s = GENRE_STYLE[g] || { color: "#888", bg: "rgba(128,128,128,0.1)" };
+    if (state.genres.has(g)) {
+      state.genres.delete(g);
+      btn.classList.remove("active");
+      btn.style.background = "transparent";
+    } else {
+      state.genres.add(g);
+      btn.classList.add("active");
+      btn.style.background = s.bg;
+    }
+    render();
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EVENT HANDLERS
+// ─────────────────────────────────────────────────────────────────────────────
+function setupControls() {
+  // Filter buttons
+  document.querySelectorAll(".fbtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const filter = btn.dataset.filter;
+      const value  = btn.dataset.value;
+
+      // Deactivate siblings
+      document.querySelectorAll(`.fbtn[data-filter="${filter}"]`).forEach(b => {
+        b.classList.remove("active", "netflix-active", "prime-active", "apple-active");
+      });
+
+      // Activate this button
+      if (value === "netflix") btn.classList.add("netflix-active");
+      else if (value === "prime") btn.classList.add("prime-active");
+      else if (value === "apple") btn.classList.add("apple-active");
+      else btn.classList.add("active");
+
+      state[filter] = value;
+      render();
+    });
+  });
+
+  // Sort buttons
+  document.querySelectorAll(".sort-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const s = btn.dataset.sort;
+      if (state.sort === s) {
+        state.sortDir = state.sortDir === "desc" ? "asc" : "desc";
+      } else {
+        state.sort = s;
+        state.sortDir = s === "title" ? "asc" : "desc";
+      }
+      document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      const arrows = { desc: " ↓", asc: " ↑" };
+      const labels = { imdb: "IMDB", year: "Jahr", title: "A – Z", new: "Neuheiten" };
+      btn.textContent = labels[s] + (s !== "new" ? arrows[state.sortDir] : "");
+      render();
+    });
+  });
+
+  // View toggle
+  document.getElementById("btn-grid").addEventListener("click", () => {
+    state.view = "grid";
+    document.getElementById("btn-grid").classList.add("active");
+    document.getElementById("btn-list").classList.remove("active");
+    render();
+  });
+  document.getElementById("btn-list").addEventListener("click", () => {
+    state.view = "list";
+    document.getElementById("btn-list").classList.add("active");
+    document.getElementById("btn-grid").classList.remove("active");
+    render();
+  });
+
+  // Search
+  let searchTimer;
+  document.getElementById("search").addEventListener("input", e => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      state.search = e.target.value.trim();
+      render();
+    }, 200);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STARFIELD
+// ─────────────────────────────────────────────────────────────────────────────
+function initStarfield() {
+  const canvas = document.getElementById("starfield");
+  const ctx = canvas.getContext("2d");
+  let stars = [];
+
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+    stars = Array.from({ length: 220 }, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.4 + 0.3,
+      a: Math.random() * 0.7 + 0.2,
+      sp: Math.random() * 0.025 + 0.005,
+      ph: Math.random() * Math.PI * 2,
+    }));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const t = Date.now() * 0.001;
+    stars.forEach(s => {
+      const a = s.a * (0.4 + 0.6 * Math.sin(t * s.sp * 60 + s.ph));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,220,255,${a})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  draw();
+  window.addEventListener("resize", resize);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+buildGenreFilter();
+setupControls();
+initStarfield();
+render();
+</script>
+</body>
+</html>
